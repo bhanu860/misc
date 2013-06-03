@@ -1,0 +1,6 @@
+{
+    "model_path": "/home/bhanu/workspace/Bird/Models/model.pickle",
+    "submission_path": "/home/bhanu/workspace/Bird/Submissions/submission.csv",
+    "data_dir": "/home/bhanu/Documents/birds/train_set_features/",
+    "species_numbers": "/home/bhanu/Documents/birds/species_numbers.csv"
+}
