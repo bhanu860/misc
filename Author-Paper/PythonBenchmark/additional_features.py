@@ -8,13 +8,14 @@ import re
 import cPickle
 import os
 
-keywords_dict = dict()
+
 author_keywords = dict()
 author_titles = dict()
-all_features = []
-delimiters = " ", "|", "\\", ";" , ",",":" 
+all_features = None
+delimiters = " ", "|", "\\", ";" , ",",":","-" 
 regexPattern = '|'.join(map(re.escape, delimiters))
 tables = [ "TrainDeleted","TrainConfirmed", "ValidPaper"]  #order of tables is important.. should match the order in train.py
+
 
 def build_keywords_dict():
     print "Building keywords dictonary for authors..."
@@ -47,59 +48,80 @@ def addtoauthorsdict(aid, word):
         d[word] = d.get(word)+1
 
 
-                
-def build_titles_dict():
-    print "building title dict for authors..."
-    #author_title_query = "select authorid,  array_agg(title) from paperauthor left outer join paper on id=paperid group by authorid"
-    #authortitles = data_io.run_query_db(author_title_query)
-    #for titles
-    n = len(author_keywords)
-    authortitles = get_title_set()
-    for aid, titles in authortitles :
-        i = int(aid)
-        if(author_titles.get(i) ==  None):
-            author_titles[i] = set()
-        if(titles == None):
-            continue
+def build_titles_feature():
+    global author_titles, all_features        
+    for i, datatable in enumerate(tables):
+        print "building title features  for ", datatable
+        author_title_query = "select t.authorid, t.paperid,  p.title from "+datatable+\
+            " t  left outer join paper p on p.id=t.paperid order by t.authorid, t.paperid"
+        authortitles = data_io.run_query_db(author_title_query)
+        #build title dictionary for all authors
+        for aid, pid, title in authortitles :            
+            if(author_titles.get(aid) == None):
+                author_titles[aid] = dict()
+            for word in re.split(regexPattern, title):
+                word = word.strip()
+                if(len(word) > 3):  #eleminate all 2 letter words
+                    if(author_titles.get(aid).get(word) == None):
+                        author_titles.get(aid)[word] = 1
+                    else:
+                        author_titles.get(aid)[word] +=1
         
-        for kw in titles:
-            if(kw==None):
-                continue
-            w = re.split(regexPattern, kw) 
-            for ww in w:
-                if(ww==""):
-                    continue
-                author_titles.get(i).add(ww)
-        
-    print "finished building author-keywords dictionary."
+        title_feature = []
+        for aid, pid, title in authortitles:
+            totalauthorwords = len(author_titles.get(aid))
+            totalpaperwords = len(re.split(regexPattern, title))
+            commonwords = 0
+            for word in re.split(regexPattern, title):
+                key = word.strip()
+                if key in author_titles.get(aid).keys():
+                    commonwords +=author_titles.get(aid).get(key)
+            title_feature.append((aid, pid, totalauthorwords, totalpaperwords, commonwords)) 
+            
+        this_table_feats = all_features[i]
+        for ii,t in enumerate(title_feature): 
+            this_table_feats[ii] +=t[2:]
+         
+    print "finished building title features."
             
 
-def get_title_set(authorid):
-    aids =""
-    for aid in authorid:
-        aids += str(aid)+","
-    query = "select authorid, array_agg(title) from paperauthor left outer join paper on id=paperid where authorid in ("+aids+") group by authorid"
-    authortitles = data_io.run_query_db(query)
-#    titles_set = set()
-#    for (aid, titles) in authortitles:
-#        if(titles == None):
-#            continue        
-#        for kw in titles:
-#            if(kw==None):
-#                continue
-#            w = re.split(regexPattern, kw) 
-#            for ww in w:
-#                if(ww==""):
-#                    continue
-#                titles_set.add(ww)
-    return authortitles
-            
+
+def build_confnJour_feature():
+    global all_features
+    for i, datatable in enumerate(tables):
+        print "building conference and journal features for "+datatable+"..."
+#        query = "with confpapers as (select conferenceid, count(id) as confpapercount from paper group by conferenceid), "+\
+#                "jourpapers as (select journalid, count(id) as jourpapercount from paper group by journalid)"+\
+#                "select t.authorid, t.paperid, confpapercount, jourpapercount from "+datatable+" left outer join paper p on p.id=t.paperid, confpapers c, jourpapers j"+\
+#                " where c.conferenceid=p.conferenceid and j.journalid=p.journalid order by authorid, paperid"
+        query = """ with confpapers as (
+                select conferenceid, count(id) as confpapercount 
+                from paper 
+                group by conferenceid),
+            jourpapers as (
+                select journalid, count(id) as jourpapercount 
+                from paper 
+                group by journalid)
+            select t.authorid, t.paperid, confpapercount, jourpapercount 
+            from """+datatable+""" t 
+                left outer join paper p on p.id=t.paperid, 
+                confpapers c, 
+                jourpapers j
+            where c.conferenceid=p.conferenceid 
+                and j.journalid=p.journalid 
+            order by authorid, paperid"""
+        conjourcounts = data_io.run_query_db(query)
+        this_table_feats = all_features[i]
+        for ii,t in enumerate(conjourcounts): 
+            this_table_feats[ii] +=t[2:]
+           
      
 def build_keywords_feature():    
     build_keywords_dict()
     global all_features 
+    all_features = [] 
     for datatable in tables:
-        print "building features for "+datatable+"..."
+        print "building keyword features for "+datatable+"..."
         query = "select authorid, paperid, keyword from "+datatable+" left outer join paper on id=paperid order by authorid, paperid"
         apkeywords = data_io.run_query_db(query)
         features = []
@@ -107,49 +129,52 @@ def build_keywords_feature():
             #titles_set = get_title_set(int(aid))
             words = set()
             #keywords += title
-            if(keywords==None or keywords==""):
-                features.append((aid, pid, 0))
-                continue            
-            w = re.split(regexPattern, keywords)
-            for ww in w:
-                if(ww==""):
-                    continue
-                words.add(ww)
-            kwfreq = 0
-            for w in words:
-                count = author_keywords.get(aid).get(w)
-                if(count == None):
-                    count = 0
-                kwfreq += count
-            
-            norm = len(words)
-            if(norm == 0):
-                norm = 1 
-            kwfreq = kwfreq#/(norm)   
-#            kwntitles = author_keywords.get(aid) | titles_set
-#            ncommon_words = (len(kwntitles) - len(kwntitles - words)) / (len(kwntitles)+1.0)
-            print aid, " ", pid, " ", kwfreq
-            features.append((aid, pid, kwfreq))
+            if(keywords!=None or keywords!=""):           
+                w = re.split(regexPattern, keywords) #array of keywords
+                for ww in w:
+                    if(ww==""):
+                        continue
+                    words.add(ww)
+            #now build feature for this author-paper example:  authorid, paperid, numofkeywordsofthispaper, numofkeywordsofauthor, numofcommonkeywords
+            numofkeywordsofthispaper = len(words)
+            numofkeywordsofauthor = len(author_keywords.get(aid))
+            numofcommonkeywords = 0
+            for pw in words:
+                if pw in author_keywords.get(aid).keys():
+                    numofcommonkeywords+=author_keywords.get(aid).get(pw)
+        
+#            print aid, " ", pid, " ", numofkeywordsofthispaper, numofkeywordsofauthor, numofcommonkeywords
+            features.append((aid, pid, numofkeywordsofthispaper, numofkeywordsofauthor, numofcommonkeywords))
         all_features.append(features)
-    with open("keyword_features.obj", 'w') as dumpfile:
-        cPickle.dump(all_features, dumpfile, protocol=cPickle.HIGHEST_PROTOCOL)
+    
     
 
-def get_keywords_feature():
+def build_additional_features():
     global all_features
-    if(os.path.exists("keyword_features.obj")):
-        print "Loading keyword feature..."
-        with open("keyword_features.obj", 'r') as loadfile:
+    build_keywords_feature()
+    build_confnJour_feature()
+    build_titles_feature()
+    print "saving additional features"
+    with open("additional_features.obj", 'w') as dumpfile:
+        cPickle.dump(all_features, dumpfile, protocol=cPickle.HIGHEST_PROTOCOL)
+
+
+def get_additional_features():
+    global all_features
+    if(os.path.exists("additional_features.obj")):
+        print "Loading additional feature..."
+        with open("additional_features.obj", 'r') as loadfile:
             all_features = cPickle.load(loadfile)
     else:    
-        build_keywords_feature()
+        build_additional_features()
         
     return all_features          
                 
                  
 if __name__=="__main__":
-    #get_keywords_feature()
-    build_titles_dict()
+    get_additional_features()
+    #build_titles_feature()
+    #build_titles_feature()
     
     
     

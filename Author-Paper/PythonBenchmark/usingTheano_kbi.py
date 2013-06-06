@@ -1,7 +1,7 @@
 import numpy as np
 import theano
 import theano.tensor as T
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 import data_io
 import time
 import sys
@@ -186,7 +186,7 @@ class MLP(object):
     class).
     """
 
-    def __init__(self, rng, input, n_in, n_hidden, n_out, n_hidden2=10):
+    def __init__(self, rng, input, n_in, n_hidden, n_out, n_hidden2=20, n_hidden3=10):
         """Initialize the parameters for the multilayer perceptron
 
         :type rng: numpy.random.RandomState
@@ -220,22 +220,26 @@ class MLP(object):
         self.hiddenLayer2 = HiddenLayer(rng=rng, input=self.hiddenLayer.output,
                                        n_in=n_hidden, n_out=n_hidden2,
                                        activation=T.tanh)
+        
+        self.hiddenLayer3 = HiddenLayer(rng=rng, input=self.hiddenLayer2.output,
+                                       n_in=n_hidden2, n_out=n_hidden3,
+                                       activation=T.tanh)
 
         # The logistic regression layer gets as input the hidden units
         # of the hidden layer
         self.logRegressionLayer = LogisticRegression(
-            input=self.hiddenLayer2.output,
-            n_in=n_hidden2,
+            input=self.hiddenLayer3.output,
+            n_in=n_hidden3,
             n_out=n_out)
 
         # L1 norm ; one regularization option is to enforce L1 norm to
         # be small
-        self.L1 = abs(self.hiddenLayer2.W).sum() \
+        self.L1 = abs(self.hiddenLayer3.W).sum() \
                 + abs(self.logRegressionLayer.W).sum()
 
         # square of L2 norm ; one regularization option is to enforce
         # square of L2 norm to be small
-        self.L2_sqr = (self.hiddenLayer2.W ** 2).sum() \
+        self.L2_sqr = (self.hiddenLayer3.W ** 2).sum() \
                     + (self.logRegressionLayer.W ** 2).sum()
 
         # negative log likelihood of the MLP is given by the negative
@@ -247,13 +251,14 @@ class MLP(object):
 
         # the parameters of the model are the parameters of the two layer it is
         # made out of
-        self.params = self.hiddenLayer.params + self.hiddenLayer2.params + self.logRegressionLayer.params
+        self.params = self.hiddenLayer.params + self.hiddenLayer2.params + self.hiddenLayer3.params+ self.logRegressionLayer.params
+#        self.params = self.hiddenLayer.params +  self.logRegressionLayer.params
         self.predictions = self.logRegressionLayer.get_predictions
 
 
 
-def test_mlp(learning_rate=0.013, L1_reg=0.0001, L2_reg=0.0003, n_epochs=10000,
-                          n_hidden=50, n_hidden2=10):
+def test_mlp(learning_rate=0.1, L1_reg=0.0001, L2_reg=0.0003, n_epochs=10000,
+                          n_hidden=50):
         """
     
         :type learning_rate: float
@@ -323,13 +328,23 @@ def test_mlp(learning_rate=0.013, L1_reg=0.0001, L2_reg=0.0003, n_epochs=10000,
         features = [x[2:] for x in features_deleted + features_conf]
         target = [0 for x in range(len(features_deleted))] + [1 for x in range(len(features_conf))]
         
+        #code for including keywords match feature
+        print "adding additional features..."
+        import additional_features as af
+        all_features = af.get_additional_features()    
+        kw_deleted, kw_confirmed, _ = all_features
+        kw_features = kw_deleted+kw_confirmed
+        for i in range(len(features)):
+            features[i]+= tuple(kw_features[i][2:])
+        
+        
+        
         featuresnp = np.array(features, dtype='float64')
         targetnp = np.array(target, dtype='int32')
     
         featuresnp -=np.mean(featuresnp, axis=0)
         featuresnp /=np.std(featuresnp, axis=0)
  
-            
             
         cv = cross_validation.ShuffleSplit(len(features), n_iter=1, test_size=0.25, random_state=0)
         for train, test in cv:
@@ -364,7 +379,7 @@ def test_mlp(learning_rate=0.013, L1_reg=0.0001, L2_reg=0.0003, n_epochs=10000,
         
         # construct the MLP class
         classifier = MLP(rng=rng, input=x, n_in=featuresnp.shape[1],
-                         n_hidden=n_hidden, n_out=2, n_hidden2=10)
+                         n_hidden=n_hidden, n_out=2)
     
         cost = classifier.negative_log_likelihood(y) \
              + L1_reg * classifier.L1 \

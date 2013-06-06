@@ -4,7 +4,7 @@ Created on May 30, 2013
 @author: bhanu
 '''
 import data_io
-import author_features as af
+
 
 author_dup = dict()
 
@@ -26,9 +26,6 @@ def build_author_dup_dict():
         i1 = int(id1); i2 = int(id2)
         author_dup.get(i1).append(i2)
         
-    #add authors with same name match in any order to duplicates
-    author_names = af.build_author_name_dict()
-    #for id in author_dup.iterkeys():
                
     print "finished building author-dup dictionary."
     

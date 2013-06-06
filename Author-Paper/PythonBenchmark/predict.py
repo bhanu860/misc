@@ -2,6 +2,7 @@ from collections import defaultdict
 import data_io
 import cPickle
 import os
+import numpy as np
 
 def main():
     print("Getting features for valid papers from the database")
@@ -16,23 +17,24 @@ def main():
     features = [x[2:] for x in data]
     
     #code for including keywords match feature
+    print "adding addtional features..."
     import additional_features as af
-    all_features = af.get_keywords_feature()
-    _, _, kw_valid = all_features
+    all_features = af.get_additional_features()    
+    _, _, kw_features = all_features    
     for i in range(len(features)):
-        _,_,ckw = kw_valid[i]
-        features[i]+=(ckw,)
+        features[i]+= tuple(kw_features[i][2:])
     
-    with open("features_content.txt", "w") as f:
-        for v in features[0:1000]:
-            vv = [int(x) for x in v]
-            f.write(str(vv)[1:-1]+"\n")
+    featuresnp = np.array(features, dtype='int32')
+        
+#    featuresnp -= np.mean(featuresnp, axis=0)
+#    featuresnp /= np.std(featuresnp, axis=0)
+    
     
     print("Loading the classifier")
     classifier = data_io.load_model(prefix="forest_")
 
     print("Making predictions")
-    predictions = classifier.predict_proba(features)[:,1]
+    predictions = classifier.predict_proba(featuresnp)[:,1]
     predictions = list(predictions)
 
     author_predictions = defaultdict(list)

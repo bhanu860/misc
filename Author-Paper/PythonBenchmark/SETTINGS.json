@@ -1,5 +1,5 @@
 {
-    "model_path": "/home/bhanu/workspace/Author-Paper/Models/test.pickle",
-    "submission_path": "/home/bhanu/workspace/Author-Paper/Submissions/test.csv",
+    "model_path": "/home/bhanu/git/misc/Author-Paper/Models/model.pickle",
+    "submission_path": "/home/bhanu/git/misc/Author-Paper/Submissions/submission.csv",
     "postgres_conn_string": "host='localhost' dbname='Kdd2013AuthorPaperIdentification' user='bhanu'  password='##AskForPassword##'"
 }
