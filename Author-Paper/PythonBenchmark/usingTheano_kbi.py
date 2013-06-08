@@ -1,7 +1,7 @@
 import numpy as np
 import theano
 import theano.tensor as T
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import data_io
 import time
 import sys
@@ -84,9 +84,9 @@ class LogisticRegression(object):
         #print y.shape[0]
         return -T.mean(T.log(self.p_y_given_x)[T.arange(y.shape[0]), y])
 
-    def get_predictions(self):
+    def get_predictions_proba(self):
         #return self.y_pred_shared.get_value()
-        return self.y_pred#theano.shared(self.y_pred, borrow=True)
+        return self.p_y_given_x #theano.shared(self.y_pred, borrow=True)
     
     def errors(self, y):
         """Return a float representing the number of errors in the minibatch
@@ -253,7 +253,7 @@ class MLP(object):
         # made out of
         self.params = self.hiddenLayer.params + self.hiddenLayer2.params + self.hiddenLayer3.params+ self.logRegressionLayer.params
 #        self.params = self.hiddenLayer.params +  self.logRegressionLayer.params
-        self.predictions = self.logRegressionLayer.get_predictions
+        self.predictions_proba = self.logRegressionLayer.get_predictions_proba
 
 
 
@@ -299,20 +299,7 @@ def test_mlp(learning_rate=0.1, L1_reg=0.0001, L2_reg=0.0003, n_epochs=10000,
                 cPickle.dump(features_conf, dumpfile, protocol=cPickle.HIGHEST_PROTOCOL)
                 
                 
-#        print("Getting features for valid papers from the database")
-#        if(os.path.exists("features_valid.obj")):
-#            with open("features_valid.obj", 'r') as loadfile:
-#                data = cPickle.load(loadfile)
-#        else:
-#            data = data_io.get_features_db("ValidPaper")
-#            with open("features_valid.obj", 'w') as dumpfile:
-#                cPickle.dump(data, dumpfile, protocol=cPickle.HIGHEST_PROTOCOL)
-        
-                 
-#        author_paper_ids = [x[:2] for x in data]
-#        features_valid = [x[2:] for x in data]   
-#        
-#        features_validnp = np.array(features_valid, dtype='float64') 
+       
         
 #        predictInts = []
 #        for tup in features_valid:
@@ -392,10 +379,7 @@ def test_mlp(learning_rate=0.1, L1_reg=0.0001, L2_reg=0.0003, n_epochs=10000,
                     x: test_set_x[index * batch_size: (index + 1) * batch_size],
                     y: test_set_y[index * batch_size: (index + 1) * batch_size]})
  
-#        predict_model = theano.function(inputs=[],
-#                outputs=classifier.predictions(),
-#                givens={
-#                    x: predict_set_x})
+        
     
         # compute the gradient of cost with respect to theta (sotred in params)
         # the resulting gradients will be stored in a list gparams
@@ -505,17 +489,41 @@ def test_mlp(learning_rate=0.1, L1_reg=0.0001, L2_reg=0.0003, n_epochs=10000,
         print("Saving the mlp best params")
         data_io.save_model(best_params, prefix="theano_")
         
-        ############################
-        #Making Predictions
-        ############################
-        
+#        ############################
+#        #Making Predictions
+#        ############################
+#        
 #        print("Making predictions")
-#        predictions = predict_model()#classifier.predict_proba(features_valid)[:,1]
+#        print("Getting features for valid papers from the database")
+#        if(os.path.exists("features_valid.obj")):
+#            with open("features_valid.obj", 'r') as loadfile:
+#                data = cPickle.load(loadfile)
+#        else:
+#            data = data_io.get_features_db("ValidPaper")
+#            with open("features_valid.obj", 'w') as dumpfile:
+#                cPickle.dump(data, dumpfile, protocol=cPickle.HIGHEST_PROTOCOL)
+#        
+#                 
+#        author_paper_ids = [x[:2] for x in data]
+#        features_valid = [x[2:] for x in data]   
+#        
+#        validnp = np.array(features_valid, dtype='float64') 
+#        validnp -=np.mean(validnp, axis=0)
+#        validnp /=np.std(validnp, axis=0)
+#        
+#        valid_set_x = theano.shared(validnp, borrow=True)
+#        
+#        predict_model = theano.function(inputs=[],
+#                outputs=classifier.predictions_proba(),
+#                givens={
+#                    x: valid_set_x})
+#        
+#        predictions = predict_model()[:,1]#classifier.predict_proba(features_valid)[:,1]
 #        predictions = list(predictions)
 #    
 #        author_predictions = defaultdict(list)
 #        paper_predictions = {}
-    
+#    
 #        for (a_id, p_id), pred in zip(author_paper_ids, predictions):
 #            author_predictions[a_id].append((pred, p_id))
 #    

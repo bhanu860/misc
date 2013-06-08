@@ -1,38 +1,10 @@
 WITH 
---nPaperAuthor AS (
---	SELECT AuthorId, PaperId  
---	FROM PaperAuthor 
---	GROUP BY AuthorId, PaperId),
---LastPubYear As(
---	SELECT AuthorId, max(Year) as year 
---	FROM PaperAuthor 
---	LEFT OUTER JOIN Paper ON paperid=id
---	GROUP BY AuthorId
---),
---FirstPubYear As(
---	SELECT AuthorId, min(Year) as year 
---	FROM PaperAuthor 
---	LEFT OUTER JOIN Paper ON paperid=id
---	GROUP BY AuthorId
---),
---PapersInConference As (
---	with confcount as (SELECT conferenceid, Count(id) as Count
---	FROM Paper
---	GROUP BY conferenceid)
---	select authorid, paperid, count
---	from  ##DataTable## t 
---	left outer join paper p on p.id = t.paperid, confcount cc
---	where cc.conferenceid = p.conferenceid
---),
---PapersInJournal As (
---	with jourcount as (SELECT journalid, Count(id) as Count
---	FROM Paper
---	GROUP BY journalid)
---	select authorid, paperid, count
---	from  ##DataTable## t 
---	left outer join paper p on p.id = t.paperid, jourcount jc
---	where jc.journalid = p.journalid
---),
+LastPubYear As(
+	SELECT AuthorId, max(Year) as year 
+	FROM PaperAuthor 
+	LEFT OUTER JOIN Paper ON paperid=id
+	GROUP BY AuthorId
+),
 AuthorJournalCounts AS (
     SELECT AuthorId, JournalId, Count(*) AS Count
     FROM PaperAuthor pa
@@ -86,17 +58,9 @@ SELECT t.AuthorId,
        apc.Count AS NumPapersWithAuthor,
        pac.Count AS NumAuthorsWithPaper,
        pin.Count As NumPapersInSameYear,
-       --npc.Count AS NumPapersInConference,
-       --npj.Count AS NumPapersInJournal,
-       --CASE WHEN (lpy.year <= 0 or p.year <= 0) THEN 0
-	--	ELSE lpy.year - p.year
-       --END AS DiffLastPubYear,
-       --CASE WHEN (fpy.year <= 0 or p.year <= 0) THEN 0
-		---ELSE p.year - fpy.year 
-       --END AS DiffFirstPubYear,
-       CASE WHEN (p.conferenceid <= 0 or p.journalid <= 0) THEN 1
-	    ELSE 0 
-       END AS InvalidCJ,
+       CASE WHEN (lpy.year <= 0 or p.year <= 0) THEN 0
+		ELSE lpy.year - p.year
+       END AS DiffLastPubYear,
        CASE WHEN coauth.Sum > 0 THEN cast(coauth.Sum as integer)
             ELSE 0 
        END AS SumPapersWithCoAuthors
@@ -115,16 +79,8 @@ LEFT OUTER JOIN PaperAuthorCounts pac
 LEFT OUTER JOIN PapersInSameYear pin
 	ON pin.AuthorId=t.AuthorId
    AND pin.Year=p.Year
---LEFT OUTER JOIN PapersInConference npc
---	ON t.paperid = npc.paperid 
---	AND t.authorid = npc.authorid
---LEFT OUTER JOIN PapersInJournal npj
---	ON t.paperid = npc.paperid 
---	AND t.authorid = npc.authorid
---LEFT OUTER JOIN LastPubYear lpy 
---	ON lpy.AuthorId = t.AuthorId
---LEFT OUTER JOIN FirstPubYear fpy
---	ON fpy.AuthorId=t.AuthorId
+LEFT OUTER JOIN LastPubYear lpy 
+	ON lpy.AuthorId = t.AuthorId
 LEFT OUTER JOIN SumPapersWithCoAuthors coauth
     ON coauth.AuthorId=t.AuthorId
    AND coauth.PaperId=t.PaperId 
