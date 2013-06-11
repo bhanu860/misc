@@ -8,6 +8,7 @@ from sklearn import cross_validation
 
 
 
+
 def main():
     print("Getting features for deleted papers from the database")
     if(os.path.exists("features_deleted.obj")):
@@ -46,15 +47,14 @@ def main():
     cv = cross_validation.ShuffleSplit(len(features), n_iter=4, test_size=0.4, random_state=0)
     
     print("Training the Classifier")
-    classifier = RandomForestClassifier(n_estimators=500, 
+    classifier = RandomForestClassifier(n_estimators=100, 
                                         verbose=2,
-                                        n_jobs=-1,
+                                        n_jobs=1,
                                         min_samples_split=1,
                                         random_state=0, 
                                         compute_importances=True                                        
                                         )
  
-
 
     featuresnp = np.array(features, dtype='int32')
     targetnp = np.array(target, dtype='int32')
@@ -98,69 +98,75 @@ def main():
 #    
 #    for f in range(len(indices)):
 #        print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
+#
+#    numFeatures = 15   
+#    prunedFeatures = np.zeros(shape=(featuresnp.shape[0], numFeatures), dtype="int32")
+#    for i in range(prunedFeatures.shape[0]):
+#        for j, fi in enumerate(indices[0:numFeatures]):
+#            prunedFeatures[i,j] = featuresnp[i, fi]  
+            
 
-   
 #    featuresnp -= np.mean(featuresnp, axis=0)
 #    featuresnp /= np.std(featuresnp, axis=0)
 
 #       
-#    results = cross_validation.cross_val_score(classifier, X=featuresnp, y=targetnp, cv=cv, n_jobs=4, verbose=True)
-#    #print out the mean of the cross-validated results
-#    print "Results: ", results
-#    print "Results: " + str( np.array(results).mean())
+    results = cross_validation.cross_val_score(classifier, X=featuresnp, y=targetnp, cv=cv, n_jobs=4, verbose=True)
+    #print out the mean of the cross-validated results
+    print "Results: ", results
+    print "Results: " + str( np.array(results).mean())
+#    
     
-    
-    print "training...."
-    classifier.fit(featuresnp, targetnp)
+#    print "training...."
+#    classifier.fit(featuresnp, targetnp)
 #    print("Saving the classifier")
 #    data_io.save_model(classifier, prefix="forest_")
    
 
 
-###Making predictions######
-    print("Getting features for valid papers from the database")
-    if(os.path.exists("features_valid.obj")):
-        with open("features_valid.obj", 'r') as loadfile:
-            data = cPickle.load(loadfile)
-    else:
-        data = data_io.get_features_db("ValidPaper")
-        with open("features_valid.obj", 'w') as dumpfile:
-            cPickle.dump(data, dumpfile, protocol=cPickle.HIGHEST_PROTOCOL)
-    author_paper_ids = [x[:2] for x in data]
-    features_valid = [x[2:] for x in data]
-    
-    #code for including keywords match feature
-    print "adding addtional features..."
-    all_features = af.get_additional_features()    
-    _, _, kw_features_valid = all_features    
-    for i in range(len(features_valid)):
-        features_valid[i]+= tuple(kw_features_valid[i][2:])
-    
-    features_validnp = np.array(features_valid, dtype='int32')
-        
-#    featuresnp -= np.mean(featuresnp, axis=0)
-#    featuresnp /= np.std(featuresnp, axis=0)
-    
-    
-#    print("Loading the classifier")
-#    classifier = data_io.load_model(prefix="forest_")
-
-    print("Making predictions")
-    predictions = classifier.predict_proba(features_validnp)[:,1]
-    predictions = list(predictions)
-
-    author_predictions = defaultdict(list)
-    paper_predictions = {}
-
-    for (a_id, p_id), pred in zip(author_paper_ids, predictions):
-        author_predictions[a_id].append((pred, p_id))
-
-    for author_id in sorted(author_predictions):
-        paper_ids_sorted = sorted(author_predictions[author_id], reverse=True)
-        paper_predictions[author_id] = [x[1] for x in paper_ids_sorted]
-
-    print("Writing predictions to file")
-    data_io.write_submission(paper_predictions, prefix="forest_")
+####Making predictions######
+#    print("Getting features for valid papers from the database")
+#    if(os.path.exists("features_valid.obj")):
+#        with open("features_valid.obj", 'r') as loadfile:
+#            data = cPickle.load(loadfile)
+#    else:
+#        data = data_io.get_features_db("ValidPaper")
+#        with open("features_valid.obj", 'w') as dumpfile:
+#            cPickle.dump(data, dumpfile, protocol=cPickle.HIGHEST_PROTOCOL)
+#    author_paper_ids = [x[:2] for x in data]
+#    features_valid = [x[2:] for x in data]
+#    
+#    #code for including keywords match feature
+#    print "adding addtional features..."
+#    all_features = af.get_additional_features()    
+#    _, _, kw_features_valid = all_features    
+#    for i in range(len(features_valid)):
+#        features_valid[i]+= tuple(kw_features_valid[i][2:])
+#    
+#    features_validnp = np.array(features_valid, dtype='int32')
+#        
+##    featuresnp -= np.mean(featuresnp, axis=0)
+##    featuresnp /= np.std(featuresnp, axis=0)
+#    
+#    
+##    print("Loading the classifier")
+##    classifier = data_io.load_model(prefix="forest_")
+#
+#    print("Making predictions")
+#    predictions = classifier.predict_proba(features_validnp)[:,1]
+#    predictions = list(predictions)
+#
+#    author_predictions = defaultdict(list)
+#    paper_predictions = {}
+#
+#    for (a_id, p_id), pred in zip(author_paper_ids, predictions):
+#        author_predictions[a_id].append((pred, p_id))
+#
+#    for author_id in sorted(author_predictions):
+#        paper_ids_sorted = sorted(author_predictions[author_id], reverse=True)
+#        paper_predictions[author_id] = [x[1] for x in paper_ids_sorted]
+#
+#    print("Writing predictions to file")
+#    data_io.write_submission(paper_predictions, prefix="forest_")
 
 
     

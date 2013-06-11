@@ -257,7 +257,7 @@ class MLP(object):
 
 
 
-def test_mlp(learning_rate=0.1, L1_reg=0.0001, L2_reg=0.0003, n_epochs=10000,
+def test_mlp(learning_rate=0.017, L1_reg=0.0001, L2_reg=0.0003, n_epochs=10000,
                           n_hidden=50):
         """
     

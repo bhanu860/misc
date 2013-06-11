@@ -154,7 +154,10 @@ def build_confjour_dicts():
     
 
 def build_affiliations_dict():
+    
     print "Building affiliations dict..."
+#    delim = "|", ";" , ","
+#    regexP= '|'.join(map(re.escape, delim))
     author_affs = dict()
     query = """ select id, affiliation from author"""
     aaff = data_io.run_query_db(query)
@@ -162,6 +165,28 @@ def build_affiliations_dict():
         if(author_affs.get(aid) ==  None):
             author_affs[aid] = set()
         author_affs.get(aid).add(aff)
+#        if(aff!=None or aff!=''):
+#            words = re.split(regexP, aff)
+#            for w in words:
+#                if(len(w) > 2):
+#                    author_affs.get(aid).add(w)
+#        else:
+#            author_affs.get(aid).add(aff)
+        
+#    query = """ select a.id, pa.affiliation from author a 
+#                left outer join paperauthor pa on a.id=pa.authorid 
+#                where a.affiliation='' and pa.affiliation!='' """
+#                
+#    aaff = data_io.run_query_db(query)
+#    for aid, aff in aaff:
+#        if(aff!=None or aff!=''):
+#            words = re.split(regexP, aff)
+#            for w in words:
+#                if(len(w) > 2):
+#                    author_affs.get(aid).add(w)
+#        else:
+#            author_affs.get(aid).add(aff)
+    
     return author_affs
 
 
